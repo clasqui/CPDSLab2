@@ -15,7 +15,7 @@ handler(Client, Validator, Store, Reads, Writes) ->
                     Client ! {value, Ref, Value},
                     handler(Client, Validator, Store, Reads, Writes);
                 false ->
-                    Entry = Store:lookup(N, Store),
+                    Entry = store:lookup(N, Store),
                     Entry ! {read, Ref, self()},
                     handler(Client, Validator, Store, Reads, Writes)
             end;
@@ -23,7 +23,7 @@ handler(Client, Validator, Store, Reads, Writes) ->
             Client ! {value, Ref, Value},
             handler(Client, Validator, Store, [{Entry, Time}|Reads], Writes);
         {write, N, Value} ->
-            Entry = Store:lookup(N, Store),
+            Entry = store:lookup(N, Store),
             Added = lists:keystore(N, 1, Writes, {N, Entry, Value}),
             handler(Client, Validator, Store, Reads, Added);
         {commit, Ref} ->
