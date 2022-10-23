@@ -1,16 +1,16 @@
 -module(client).
--export([start/5]).
+-export([start/6]).
 
-start(ClientID, Entries, Reads, Writes, Server) ->
-    spawn(fun() -> open(ClientID, Entries, Reads, Writes, Server, 0, 0) end).
+start(ClientID, Entries, Reads, Writes, Server, Params) ->
+    spawn(fun() -> open(ClientID, Entries, Reads, Writes, Server, 0, 0, Params) end).
 
-open(ClientID, Entries, Reads, Writes, Server, Total, Ok) ->
+open(ClientID, Entries, Reads, Writes, Server, Total, Ok, Params) ->
     Server ! {open, self()},
     receive
         {stop, From} ->
             io:format(
-                "~w: Transactions TOTAL:~w, OK:~w, -> ~w % ~n",
-                [ClientID, Total, Ok, 100 * Ok / Total]
+                "~w, ~w, ~w, ~w, ~w~n",
+                Params ++ [100 * Ok / Total]
             ),
             From ! {done, self()},
             ok;
@@ -18,9 +18,9 @@ open(ClientID, Entries, Reads, Writes, Server, Total, Ok) ->
             Handler = handler:start(self(), Validator, Store),
             case do_transaction(ClientID, Entries, Reads, Writes, Handler) of
                 ok ->
-                    open(ClientID, Entries, Reads, Writes, Server, Total + 1, Ok + 1);
+                    open(ClientID, Entries, Reads, Writes, Server, Total + 1, Ok + 1, Params);
                 abort ->
-                    open(ClientID, Entries, Reads, Writes, Server, Total + 1, Ok)
+                    open(ClientID, Entries, Reads, Writes, Server, Total + 1, Ok, Params)
             end
     end.
 

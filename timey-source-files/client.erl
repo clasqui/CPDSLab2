@@ -10,7 +10,7 @@ open(ClientID, Entries, Reads, Writes, Server, Total, Ok) ->
         {stop, From} ->
             io:format("~w: Transactions TOTAL:~w, OK:~w, -> ~w % ~n",
             [ClientID, Total, Ok, 100*Ok/Total]),
-            From ! {done, self()},
+            From ! {done, self(), [ClientID, Total, Ok, 100*Ok/Total]},
             ok;
         {transaction, Time, Store} ->
             Tref = make_ref(),
@@ -30,31 +30,32 @@ do_transaction(ClientID, Entries, 0, Writes, Handler, Tref) ->
         abort ->
             abort;
         ok ->
-            do_transaction(ClientID, Entries, 0, Writes-1, Handler, Tref)
+            do_transaction(ClientID, Entries, 0, Writes - 1, Handler, Tref)
     end;
 do_transaction(ClientID, Entries, Reads, 0, Handler, Tref) ->
     case do_read(Entries, Handler, Tref) of
         abort ->
             abort;
         _ ->
-            do_transaction(ClientID, Entries, Reads-1, 0, Handler, Tref)
+            do_transaction(ClientID, Entries, Reads - 1, 0, Handler, Tref)
     end;
 do_transaction(ClientID, Entries, Reads, Writes, Handler, Tref) ->
     Op = rand:uniform(),
-    if Op >= 0.5 ->
-         case do_read(Entries, Handler, Tref) of
-             abort ->
-                 abort;
-             _ ->
-                 do_transaction(ClientID, Entries, Reads-1, Writes, Handler, Tref)
-         end;
-       true -> 
-         case do_write(Entries, Handler, ClientID, Tref) of
-             abort ->
-                 abort;
-             ok ->
-                 do_transaction(ClientID, Entries, Reads, Writes-1, Handler, Tref)
-         end
+    if
+        Op >= 0.5 ->
+            case do_read(Entries, Handler, Tref) of
+                abort ->
+                    abort;
+                _ ->
+                    do_transaction(ClientID, Entries, Reads - 1, Writes, Handler, Tref)
+            end;
+        true ->
+            case do_write(Entries, Handler, ClientID, Tref) of
+                abort ->
+                    abort;
+                ok ->
+                    do_transaction(ClientID, Entries, Reads, Writes - 1, Handler, Tref)
+            end
     end.
 
 do_read(Entries, Handler, Tref) ->
@@ -62,14 +63,14 @@ do_read(Entries, Handler, Tref) ->
     Num = rand:uniform(Entries),
     Handler ! {read, Ref, Num},
     receive
-        {value, Ref, {ok, Value}} -> 
+        {value, Ref, {ok, Value}} ->
             Value;
         {abort, Tref} ->
             abort
     end.
 
 do_write(Entries, Handler, Value, Tref) ->
-    Ref = make_ref(), 
+    Ref = make_ref(),
     Num = rand:uniform(Entries),
     Handler ! {write, Ref, Num, Value},
     receive
@@ -87,4 +88,3 @@ do_commit(Handler, Tref) ->
         {abort, Tref} ->
             abort
     end.
-
