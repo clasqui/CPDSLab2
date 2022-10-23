@@ -10,14 +10,14 @@ init(Value) ->
 entry(Value, Time) ->
     receive
         {read, Ref, From} ->
-            From ! {Ref, self(), Value, Erlang:timestamp()} % Not sure bout this last message
+            From ! {Ref, self(), Value, Time},
             entry(Value, Time);
         {write, New} ->
-            entry(New , make_ref()); 
+            entry(New, make_ref());
         {check, Ref, Readtime, From} ->
-            if 
-                 Readtime == Time ->
-                    From ! {Ref, ok}
+            if
+                Readtime == Time ->
+                    From ! {Ref, ok};
                 true ->
                     From ! {Ref, abort}
             end,
